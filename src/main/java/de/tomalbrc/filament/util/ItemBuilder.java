@@ -14,8 +14,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("unused")
 public class ItemBuilder {
-    private ResourceLocation id;
+    private final ResourceLocation id;
     private Item vanillaItem;
     private Map<String, String> translations;
     private Component displayName;
@@ -82,7 +83,8 @@ public class ItemBuilder {
     }
 
     public ItemData build() {
-        return new ItemData(
+        //? if >1.21.1 {
+        /*return new ItemData(
                 id,
                 vanillaItem,
                 translations,
@@ -95,5 +97,18 @@ public class ItemBuilder {
                 itemGroup,
                 itemTags
         );
+        *///?} else {
+        return new ItemData(
+                id,
+                vanillaItem,
+                translations,
+                itemResource,
+                behaviourConfig,
+                properties,
+                components,
+                itemGroup,
+                itemTags
+        );
+        //?}
     }
 }

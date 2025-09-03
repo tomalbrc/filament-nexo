@@ -17,8 +17,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("unused")
 public class BlockDataBuilder {
     private final ResourceLocation id;
+    private final BlockResource blockResource;
     private Item vanillaItem;
     private Map<String, String> translations;
     private Component displayName;
@@ -27,7 +29,6 @@ public class BlockDataBuilder {
     private BehaviourConfigMap behaviourConfig;
     private DataComponentMap components;
     private ResourceLocation itemGroup;
-    private BlockResource blockResource;
     private BlockStateMappedProperty<BlockModelType> blockModelType;
     private BlockProperties properties;
     private Set<ResourceLocation> itemTags;
@@ -99,7 +100,8 @@ public class BlockDataBuilder {
     }
 
     public BlockData build() {
-        return new BlockData(
+        //? if >1.21.1 {
+                /*return new BlockData(
                 id,
                 vanillaItem,
                 translations,
@@ -115,5 +117,21 @@ public class BlockDataBuilder {
                 itemTags,
                 blockTags
         );
+        *///?} else {
+        return new BlockData(
+                id,
+                vanillaItem,
+                translations,
+                blockResource,
+                itemResource,
+                blockModelType,
+                properties,
+                behaviourConfig,
+                components,
+                itemGroup,
+                itemTags,
+                blockTags
+        );
+        //?}
     }
 }

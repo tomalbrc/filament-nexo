@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class DecorationDataBuilder {
     private final ResourceLocation id;
     private Item vanillaItem;
@@ -123,7 +124,8 @@ public class DecorationDataBuilder {
     }
 
     public DecorationData build() {
-        return new DecorationData(
+        //? if >1.21.1 {
+        /*return new DecorationData(
                 id,
                 vanillaItem,
                 translations,
@@ -142,5 +144,22 @@ public class DecorationDataBuilder {
                 size,
                 itemFrame
         );
+        *///?} else {
+        return new DecorationData(
+                id,
+                null,
+                itemResource,
+                vanillaItem,
+                translations,
+                blocks,
+                size,
+                properties,
+                behaviourConfig,
+                components,
+                itemGroup,
+                itemTags,
+                blockTags
+        );
+        //?}
     }
 }

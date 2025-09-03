@@ -6,13 +6,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import de.tomalbrc.filament.behaviour.BehaviourConfigMap;
 import de.tomalbrc.filament.behaviour.Behaviours;
-import de.tomalbrc.filament.behaviour.block.Rotating;
-import de.tomalbrc.filament.behaviour.block.Waterloggable;
 import de.tomalbrc.filament.behaviour.decoration.Seat;
-import de.tomalbrc.filament.behaviour.item.Hoe;
-import de.tomalbrc.filament.behaviour.item.Shears;
-import de.tomalbrc.filament.behaviour.item.Shovel;
-import de.tomalbrc.filament.behaviour.item.Stripper;
+import de.tomalbrc.filament.behaviour.item.*;
+import de.tomalbrc.filament.behaviour.block.*;
 import de.tomalbrc.filament.data.BlockData;
 import de.tomalbrc.filament.data.DecorationData;
 import de.tomalbrc.filament.data.ItemData;
@@ -27,6 +23,7 @@ import de.tomalbrc.filament.registry.DecorationRegistry;
 import de.tomalbrc.filament.registry.ItemRegistry;
 import de.tomalbrc.filament.snakeyaml.Yaml;
 import de.tomalbrc.filament.util.*;
+import eu.pb4.placeholders.api.TextParserUtils;
 import eu.pb4.polymer.blocks.api.BlockModelType;
 import eu.pb4.polymer.blocks.api.PolymerBlockModel;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
@@ -37,6 +34,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -223,9 +221,9 @@ public class NexoImporter {
             builder.set(DataComponents.ITEM_NAME, TextUtil.formatText(name));
 
         var material = getValue("material", data, String.class);
-        Item vanillaItem = null;
+        Item vanillaItem;
         if (material != null) {
-            vanillaItem = BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(material.toLowerCase()));
+            vanillaItem = RegUtil.getValue(BuiltInRegistries.ITEM, ResourceLocation.parse(material.toLowerCase()));
         } else {
             vanillaItem = Items.LEATHER_HORSE_ARMOR;
         }
@@ -254,11 +252,11 @@ public class NexoImporter {
                 addDecoration(id, data, furniture, vanillaItem, name, builder);
             }
         } else {
-            addItem(id, data, vanillaItem, name, builder);
+            addItem(id, data, vanillaItem, name, builder, fileRedirects);
         }
     }
 
-    private static void handleOraxenAttributes(List attr, DataComponentMap.Builder builder) {
+    private static void handleOraxenAttributes(List<?> attr, DataComponentMap.Builder builder) {
         var attrBuilder = ItemAttributeModifiers.builder();
         for (Object o : attr) {
             var amount = getValue("amount", o, Number.class);
@@ -266,7 +264,7 @@ public class NexoImporter {
             var operation = getValue("operation", o, Integer.class);
             var slot = EquipmentSlot.valueOf(getValue("slot", o, String.class));
 
-            attrBuilder.add(BuiltInRegistries.ATTRIBUTE.get(ResourceLocation.parse(attribute.toLowerCase().replace("_", "."))).orElseThrow(), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
+            attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, ResourceLocation.parse(attribute.toLowerCase().replace("_", "."))), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
         }
         builder.set(DataComponents.ATTRIBUTE_MODIFIERS, attrBuilder.build());
     }
@@ -293,7 +291,11 @@ public class NexoImporter {
                         new PolymerBlockModel(ResourceLocation.parse(model), 0, 0, false, 0)
                 )))
                 .vanillaItem(vanillaItem)
+                //? if >1.21.1 {
+                /*.displayName(TextUtil.formatText(name))
+                *///?} else {
                 .displayName(TextUtil.formatText(name))
+                //?}
                 .components(builder.build())
                 .blockModelType(BlockStateMappedProperty.of(BlockModelType.FULL_BLOCK))
                 .properties(props)
@@ -320,7 +322,8 @@ public class NexoImporter {
         props.pushReaction = PushReaction.BLOCK;
         var rotObj = getValue("rotatable", furniture, Boolean.class);
         if (rotObj == Boolean.TRUE || rotObj == null) {
-            Rotating.Config config = new Rotating.Config();
+            //? if >1.21.1 {
+            /*Rotating.Config config = new Rotating.Config();
             var restrictedRot = getValue("restricted_rotation", furniture, String.class);
             if (restrictedRot != null) {
                 config.smooth = restrictedRot.equals("STRICT");
@@ -328,6 +331,15 @@ public class NexoImporter {
                 config.smooth = true;
             }
             behaviourConfigMap.put(Behaviours.ROTATING, config);
+            *///?} else {
+            props.rotate = true;
+            var restrictedRot = getValue("restricted_rotation", furniture, String.class);
+            if (restrictedRot != null) {
+                props.rotateSmooth = restrictedRot.equals("STRICT");
+            } else {
+                props.rotateSmooth = true;
+            }
+            //?}
         }
 
         var lightObj = getValue("light", furniture, Integer.class);
@@ -344,7 +356,11 @@ public class NexoImporter {
 
         var waterloggable = getValue("waterloggable", furniture, Boolean.class) == Boolean.TRUE;
         if (waterloggable) {
-            behaviourConfigMap.put(Behaviours.WATERLOGGABLE, new Waterloggable.Config());
+            //? if >1.21.1 {
+            /*behaviourConfigMap.put(Behaviours.WATERLOGGABLE, new Waterloggable.Config());
+             *///?} else {
+            props.waterloggable = true;
+            //?}
         }
 
         var drop = getMap("drop", furniture);
@@ -391,7 +407,11 @@ public class NexoImporter {
             }
         }
 
-        Seat.Config filamentSeats = new Seat.Config();
+        //? if >1.21.1 {
+        /*Seat.Config filamentSeats = new Seat.Config();
+         *///?} else {
+        Seat.SeatConfig filamentSeats = new Seat.SeatConfig();
+        //?}
         var seat = getMap("seat", furniture);
         if (seat != null) {
             var height = getValue("height", seat, Float.class);
@@ -427,11 +447,7 @@ public class NexoImporter {
         DecorationData decorationData = new DecorationDataBuilder(id)
                 .vanillaItem(vanillaItem)
                 .displayName(TextUtil.formatText(name))
-                .itemResource(new ItemResource(
-                        Map.of("default", ResourceLocation.parse(model)),
-                        null,
-                        null
-                ))
+                .itemResource(defaultItemResource(ResourceLocation.parse(model)))
                 .behaviourConfig(behaviourConfigMap)
                 .components(builder.build())
                 .properties(props)
@@ -443,7 +459,31 @@ public class NexoImporter {
         DecorationRegistry.register(decorationData);
     }
 
-    private static void addItem(ResourceLocation id, Object data, Item vanillaItem, String name, DataComponentMap.Builder builder) {
+    private static ItemResource defaultItemResource(ResourceLocation model) {
+        //? if >1.21.1 {
+        /*return new ItemResource(
+            Map.of("default", model),
+            null,
+            null
+        );
+         *///?} else {
+        return ItemResource.of(Map.of("default", model), null, null);
+        //?}
+    }
+
+    private static ItemResource texturedItemResource(ResourceLocation model, String parent_model, Map<String, ResourceLocation> textures) {
+        //? if >1.21.1 {
+        /*return new ItemResource(
+                                Map.of("default", model),
+                                parent_model != null ? ResourceLocation.parse(parent_model) : null,
+                                !textures.isEmpty() ? Map.of("default", textures) : null
+                        );
+         *///?} else {
+        return ItemResource.of(Map.of("default", model), parent_model != null ? ResourceLocation.parse(parent_model) : null, !textures.isEmpty() ? Map.of("default", textures) : null);
+        //?}
+    }
+
+    private static void addItem(ResourceLocation id, Object data, Item vanillaItem, String name, DataComponentMap.Builder builder, Map<String, String> fileRedirects) {
         // load as simple item
         var pack = getMap("Pack", data);
         var model = getValue("model", pack, String.class);
@@ -473,6 +513,40 @@ public class NexoImporter {
             }
         }
 
+        //? if <=1.21.1 {
+        var customArmor = getMap("#CustomArmor", pack);
+        if (customArmor != null) {
+            String l1 = customArmor.get("layer1").toString();
+            String l2 = customArmor.get("layer2").toString();
+            var src1 = "assets/minecraft/textures/" + l1 + ".png";
+            var src2 = "assets/minecraft/textures/" + l2 + ".png";
+            var pathParts = l1.replace("_layer_1", "").split("/");
+            var path = pathParts[pathParts.length - 1];
+            fileRedirects.put(src1, "assets/minecraft/textures/trims/models/armor/" + path + ".png");
+            fileRedirects.put(src2, "assets/minecraft/textures/trims/models/armor/" + path + "_leggings.png");
+
+            var conf = new Armor.Config();
+            conf.trim = true;
+            conf.texture = ResourceLocation.withDefaultNamespace(path);
+            if (vanillaItem instanceof ArmorItem armorItem) {
+                conf.slot = armorItem.getEquipmentSlot();
+            }
+
+            behaviourConfigMap.put(Behaviours.ARMOR, conf);
+        }
+
+        if (vanillaItem instanceof ElytraItem) {
+            behaviourConfigMap.put(Behaviours.ELYTRA, new Elytra.Config());
+        }
+
+        var mechanics = getMap("Mechanics", data);
+        if (mechanics != null && mechanics.containsKey("cosmetic") && vanillaItem instanceof Equipable equipable) {
+            var conf = new Cosmetic.Config();
+            conf.slot = equipable.getEquipmentSlot();
+            behaviourConfigMap.put(Behaviours.COSMETIC, conf);
+        }
+        //?}
+
         if (vanillaItem instanceof ShovelItem) {
             behaviourConfigMap.put(Behaviours.SHOVEL, new Shovel.Config());
         }
@@ -489,20 +563,16 @@ public class NexoImporter {
             behaviourConfigMap.put(Behaviours.STRIPPER, new Stripper.Config());
         }
 
-        if (vanillaItem instanceof HoneycombItem) {
+        //? if >1.21.1 {
+        /*if (vanillaItem instanceof HoneycombItem) {
             behaviourConfigMap.put(Behaviours.WAX, new Stripper.Config());
         }
+        *///?}
 
         ItemData itemData = new ItemBuilder(id)
                 .vanillaItem(vanillaItem)
                 .displayName(TextUtil.formatText(name))
-                .itemResource(
-                        new ItemResource(
-                                Map.of("default", ResourceLocation.parse(model)),
-                                parent_model != null ? ResourceLocation.parse(parent_model) : null,
-                                !textures.isEmpty() ? Map.of("default", textures) : null
-                        )
-                )
+                .itemResource(texturedItemResource(ResourceLocation.parse(model), parent_model, textures))
                 .properties(props)
                 .components(builder.build())
                 .build();
@@ -530,4 +600,12 @@ public class NexoImporter {
         }
         return null;
     }
+
+    //? if <=1.21.1 {
+    private static class TextUtil {
+        public static Component formatText(String text) {
+            return TextParserUtils.formatText(text);
+        }
+    }
+    //?}
 }
