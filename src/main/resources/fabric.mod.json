@@ -7,7 +7,7 @@
   "authors": [],
   "contact": {},
   "license": "LGPL-3.0",
-  "icon": "assets/filament-nexo/icon.png",
+  "icon": "filament-icon@256.png",
   "environment": "*",
   "entrypoints": {
     "main": [
