@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "filament-nexo",
+  "version": "${version}",
+  "name": "filament-nexo",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "LGPL-3.0",
+  "icon": "assets/filament-nexo/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "de.tomalbrc.filament.FilamentNexo"
+    ]
+  },
+  "mixins": [
+    "filament-nexo.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "filament": "*",
+    "polymer-core": "*",
+    "minecraft": ">=${minecraft_version}"
+  }
+}
