@@ -267,7 +267,13 @@ public class NexoImporter {
             var operation = getValue("operation", o, Integer.class);
             var slot = EquipmentSlot.valueOf(getValue("slot", o, String.class));
 
-            var attrId = ResourceLocation.parse(attribute.toLowerCase().replace("_", ".").replace("generic.", ""));
+            var str = attribute.toLowerCase().replace("_", ".").replace("generic.", "");
+
+            //? if >1.21.1 {
+            str = str.replace("generic.", "");
+            //?}
+
+            var attrId = ResourceLocation.parse(str);
             attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, attrId), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
         }
         builder.set(DataComponents.ATTRIBUTE_MODIFIERS, attrBuilder.build());
