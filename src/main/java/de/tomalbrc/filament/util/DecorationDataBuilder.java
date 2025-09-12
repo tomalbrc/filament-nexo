@@ -125,7 +125,7 @@ public class DecorationDataBuilder {
 
     public DecorationData build() {
         //? if >1.21.1 {
-        /*return new DecorationData(
+        return new DecorationData(
                 id,
                 vanillaItem,
                 translations,
@@ -144,8 +144,8 @@ public class DecorationDataBuilder {
                 size,
                 itemFrame
         );
-        *///?} else {
-        return new DecorationData(
+        //?} else {
+        /*return new DecorationData(
                 id,
                 null,
                 itemResource,
@@ -160,6 +160,6 @@ public class DecorationDataBuilder {
                 itemTags,
                 blockTags
         );
-        //?}
+        *///?}
     }
 }

@@ -84,7 +84,7 @@ public class ItemBuilder {
 
     public ItemData build() {
         //? if >1.21.1 {
-        /*return new ItemData(
+        return new ItemData(
                 id,
                 vanillaItem,
                 translations,
@@ -97,8 +97,8 @@ public class ItemBuilder {
                 itemGroup,
                 itemTags
         );
-        *///?} else {
-        return new ItemData(
+        //?} else {
+        /*return new ItemData(
                 id,
                 vanillaItem,
                 translations,
@@ -109,6 +109,6 @@ public class ItemBuilder {
                 itemGroup,
                 itemTags
         );
-        //?}
+        *///?}
     }
 }

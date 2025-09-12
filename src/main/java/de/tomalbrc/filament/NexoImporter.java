@@ -21,7 +21,6 @@ import de.tomalbrc.filament.data.resource.ItemResource;
 import de.tomalbrc.filament.registry.BlockRegistry;
 import de.tomalbrc.filament.registry.DecorationRegistry;
 import de.tomalbrc.filament.registry.ItemRegistry;
-import de.tomalbrc.filament.snakeyaml.Yaml;
 import de.tomalbrc.filament.util.*;
 import eu.pb4.placeholders.api.TextParserUtils;
 import eu.pb4.polymer.blocks.api.BlockModelType;
@@ -47,6 +46,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -192,7 +192,7 @@ public class NexoImporter {
         Yaml yaml = new Yaml();
         Map<String, Object> elements = yaml.load(inputStream);
         for (Map.Entry<String, Object> element : elements.entrySet()) {
-            processElement(ResourceLocation.fromNamespaceAndPath(baseName, element.getKey()), element.getValue(), fileRedirects);
+            processElement(element.getKey().contains(":") ? ResourceLocation.parse(element.getKey()) : ResourceLocation.fromNamespaceAndPath(baseName.toLowerCase(), element.getKey().toLowerCase()), element.getValue(), fileRedirects);
         }
     }
 
@@ -264,7 +264,8 @@ public class NexoImporter {
             var operation = getValue("operation", o, Integer.class);
             var slot = EquipmentSlot.valueOf(getValue("slot", o, String.class));
 
-            attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, ResourceLocation.parse(attribute.toLowerCase().replace("_", "."))), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
+            var attrId = ResourceLocation.parse(attribute.toLowerCase().replace("_", ".").replace("generic.", ""));
+            attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, attrId), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
         }
         builder.set(DataComponents.ATTRIBUTE_MODIFIERS, attrBuilder.build());
     }
@@ -292,10 +293,10 @@ public class NexoImporter {
                 )))
                 .vanillaItem(vanillaItem)
                 //? if >1.21.1 {
-                /*.displayName(TextUtil.formatText(name))
-                *///?} else {
                 .displayName(TextUtil.formatText(name))
-                //?}
+                //?} else {
+                /*.displayName(TextUtil.formatText(name))
+                 *///?}
                 .components(builder.build())
                 .blockModelType(BlockStateMappedProperty.of(BlockModelType.FULL_BLOCK))
                 .properties(props)
@@ -323,7 +324,7 @@ public class NexoImporter {
         var rotObj = getValue("rotatable", furniture, Boolean.class);
         if (rotObj == Boolean.TRUE || rotObj == null) {
             //? if >1.21.1 {
-            /*Rotating.Config config = new Rotating.Config();
+            Rotating.Config config = new Rotating.Config();
             var restrictedRot = getValue("restricted_rotation", furniture, String.class);
             if (restrictedRot != null) {
                 config.smooth = restrictedRot.equals("STRICT");
@@ -331,15 +332,15 @@ public class NexoImporter {
                 config.smooth = true;
             }
             behaviourConfigMap.put(Behaviours.ROTATING, config);
-            *///?} else {
-            props.rotate = true;
+            //?} else {
+            /*props.rotate = true;
             var restrictedRot = getValue("restricted_rotation", furniture, String.class);
             if (restrictedRot != null) {
                 props.rotateSmooth = restrictedRot.equals("STRICT");
             } else {
                 props.rotateSmooth = true;
             }
-            //?}
+            *///?}
         }
 
         var lightObj = getValue("light", furniture, Integer.class);
@@ -357,10 +358,10 @@ public class NexoImporter {
         var waterloggable = getValue("waterloggable", furniture, Boolean.class) == Boolean.TRUE;
         if (waterloggable) {
             //? if >1.21.1 {
-            /*behaviourConfigMap.put(Behaviours.WATERLOGGABLE, new Waterloggable.Config());
-             *///?} else {
-            props.waterloggable = true;
-            //?}
+            behaviourConfigMap.put(Behaviours.WATERLOGGABLE, new Waterloggable.Config());
+            //?} else {
+            /*props.waterloggable = true;
+             *///?}
         }
 
         var drop = getMap("drop", furniture);
@@ -408,10 +409,10 @@ public class NexoImporter {
         }
 
         //? if >1.21.1 {
-        /*Seat.Config filamentSeats = new Seat.Config();
-         *///?} else {
-        Seat.SeatConfig filamentSeats = new Seat.SeatConfig();
-        //?}
+        Seat.Config filamentSeats = new Seat.Config();
+        //?} else {
+        /*Seat.SeatConfig filamentSeats = new Seat.SeatConfig();
+         *///?}
         var seat = getMap("seat", furniture);
         if (seat != null) {
             var height = getValue("height", seat, Float.class);
@@ -461,26 +462,26 @@ public class NexoImporter {
 
     private static ItemResource defaultItemResource(ResourceLocation model) {
         //? if >1.21.1 {
-        /*return new ItemResource(
-            Map.of("default", model),
-            null,
-            null
+        return new ItemResource(
+                Map.of("default", model),
+                null,
+                null
         );
-         *///?} else {
-        return ItemResource.of(Map.of("default", model), null, null);
-        //?}
+        //?} else {
+        /*return ItemResource.of(Map.of("default", model), null, null);
+         *///?}
     }
 
     private static ItemResource texturedItemResource(ResourceLocation model, String parent_model, Map<String, ResourceLocation> textures) {
         //? if >1.21.1 {
-        /*return new ItemResource(
-                                Map.of("default", model),
-                                parent_model != null ? ResourceLocation.parse(parent_model) : null,
-                                !textures.isEmpty() ? Map.of("default", textures) : null
-                        );
-         *///?} else {
-        return ItemResource.of(Map.of("default", model), parent_model != null ? ResourceLocation.parse(parent_model) : null, !textures.isEmpty() ? Map.of("default", textures) : null);
-        //?}
+        return new ItemResource(
+                Map.of("default", model),
+                parent_model != null ? ResourceLocation.parse(parent_model) : null,
+                !textures.isEmpty() ? Map.of("default", textures) : null
+        );
+        //?} else {
+        /*return ItemResource.of(Map.of("default", model), parent_model != null ? ResourceLocation.parse(parent_model) : null, !textures.isEmpty() ? Map.of("default", textures) : null);
+         *///?}
     }
 
     private static void addItem(ResourceLocation id, Object data, Item vanillaItem, String name, DataComponentMap.Builder builder, Map<String, String> fileRedirects) {
@@ -514,7 +515,7 @@ public class NexoImporter {
         }
 
         //? if <=1.21.1 {
-        var customArmor = getMap("#CustomArmor", pack);
+        /*var customArmor = getMap("#CustomArmor", pack);
         if (customArmor != null) {
             String l1 = customArmor.get("layer1").toString();
             String l2 = customArmor.get("layer2").toString();
@@ -545,7 +546,7 @@ public class NexoImporter {
             conf.slot = equipable.getEquipmentSlot();
             behaviourConfigMap.put(Behaviours.COSMETIC, conf);
         }
-        //?}
+        *///?}
 
         if (vanillaItem instanceof ShovelItem) {
             behaviourConfigMap.put(Behaviours.SHOVEL, new Shovel.Config());
@@ -564,10 +565,10 @@ public class NexoImporter {
         }
 
         //? if >1.21.1 {
-        /*if (vanillaItem instanceof HoneycombItem) {
+        if (vanillaItem instanceof HoneycombItem) {
             behaviourConfigMap.put(Behaviours.WAX, new Stripper.Config());
         }
-        *///?}
+        //?}
 
         ItemData itemData = new ItemBuilder(id)
                 .vanillaItem(vanillaItem)
@@ -602,10 +603,10 @@ public class NexoImporter {
     }
 
     //? if <=1.21.1 {
-    private static class TextUtil {
+    /*private static class TextUtil {
         public static Component formatText(String text) {
             return TextParserUtils.formatText(text);
         }
     }
-    //?}
+    *///?}
 }

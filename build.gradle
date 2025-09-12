@@ -46,18 +46,15 @@ dependencies {
     modImplementation ("de.tomalbrc:filament:${property('filament_version')}")
 
     modImplementation ("eu.pb4:placeholder-api:${property('papi_version')}")
+
+    implementation include('org.yaml:snakeyaml:2.4')
 }
 
 processResources {
-    inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
-    inputs.property "loader_version", project.loader_version
-    filteringCharset "UTF-8"
+    def minecraft = stonecutter.current.version
 
     filesMatching("fabric.mod.json") {
-        expand "version": project.version,
-                "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version
+        expand([minecraft: minecraft, version: version])
     }
 }
 

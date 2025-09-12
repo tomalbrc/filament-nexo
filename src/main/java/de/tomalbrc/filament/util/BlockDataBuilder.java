@@ -101,7 +101,7 @@ public class BlockDataBuilder {
 
     public BlockData build() {
         //? if >1.21.1 {
-                /*return new BlockData(
+                return new BlockData(
                 id,
                 vanillaItem,
                 translations,
@@ -117,8 +117,8 @@ public class BlockDataBuilder {
                 itemTags,
                 blockTags
         );
-        *///?} else {
-        return new BlockData(
+        //?} else {
+        /*return new BlockData(
                 id,
                 vanillaItem,
                 translations,
@@ -132,6 +132,6 @@ public class BlockDataBuilder {
                 itemTags,
                 blockTags
         );
-        //?}
+        *///?}
     }
 }

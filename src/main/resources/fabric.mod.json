@@ -18,10 +18,10 @@
     "filament-nexo.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
+    "fabricloader": ">=0.16",
     "fabric": "*",
     "filament": "*",
     "polymer-core": "*",
-    "minecraft": ">=${minecraft_version}"
+    "minecraft": ">=${minecraft}"
   }
 }
