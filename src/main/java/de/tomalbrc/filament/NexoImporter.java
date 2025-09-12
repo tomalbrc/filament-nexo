@@ -22,7 +22,6 @@ import de.tomalbrc.filament.registry.BlockRegistry;
 import de.tomalbrc.filament.registry.DecorationRegistry;
 import de.tomalbrc.filament.registry.ItemRegistry;
 import de.tomalbrc.filament.util.*;
-import eu.pb4.placeholders.api.TextParserUtils;
 import eu.pb4.polymer.blocks.api.BlockModelType;
 import eu.pb4.polymer.blocks.api.PolymerBlockModel;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
@@ -33,7 +32,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -99,43 +97,46 @@ public class NexoImporter {
             Filament.LOGGER.error("Error reading nexo directory", e);
         }
 
-        PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(resourcePackBuilder -> {
-            Set<ResourceLocation> texturePaths = new ObjectArraySet<>();
+        Map<String, byte[]> filemap = new Object2ObjectOpenHashMap<>();
 
-            Path packPath = path.resolve("pack");
-            try (var walk = Files.walk(packPath)) {
-                walk.forEach(filepath -> {
-                    if (filepath.toFile().isDirectory())
-                        return;
+        Set<ResourceLocation> texturePaths = new ObjectArraySet<>();
+        Path packPath = path.resolve("pack");
+        try (var walk = Files.walk(packPath)) {
+            walk.forEach(filepath -> {
+                if (filepath.toFile().isDirectory())
+                    return;
 
-                    try (var stream = new FileInputStream(filepath.toFile())) {
-                        String relativePath = packPath.relativize(filepath).toString().replace("\\", "/");
+                try (var stream = new FileInputStream(filepath.toFile())) {
+                    String relativePath = packPath.relativize(filepath).toString().replace("\\", "/");
 
-                        // oraxen or older packs
-                        if (!relativePath.startsWith("assets/")) {
-                            relativePath = "assets/minecraft/" + relativePath;
-                        }
-
-                        String dir = getTextureParent(relativePath);
-                        if (dir != null && relativePath.endsWith(".png")) {
-                            String ns = getNamespace(relativePath);
-                            if (ns != null) {
-                                texturePaths.add(ResourceLocation.fromNamespaceAndPath(ns, dir));
-                            }
-                        }
-
-                        resourcePackBuilder.addData(fileRedirects.getOrDefault(relativePath, relativePath), stream.readAllBytes());
-                    } catch (Throwable e) {
-                        Filament.LOGGER.error("Error reading nexo asset", e);
+                    // oraxen or older packs
+                    if (!relativePath.startsWith("assets/")) {
+                        relativePath = "assets/minecraft/" + relativePath;
                     }
-                });
-            } catch (Throwable e) {
-                Filament.LOGGER.error("Error reading nexo pack assets", e);
-            }
 
-            byte[] atlas = generateAtlasJson(texturePaths);
-            resourcePackBuilder.addData("assets/minecraft/atlases/blocks.json", atlas);
-            resourcePackBuilder.addData("assets/minecraft/atlases/particle.json", atlas);
+                    String dir = getTextureParent(relativePath);
+                    if (dir != null && relativePath.endsWith(".png")) {
+                        String ns = getNamespace(relativePath);
+                        if (ns != null) {
+                            texturePaths.add(ResourceLocation.fromNamespaceAndPath(ns, dir));
+                        }
+                    }
+
+                    filemap.put(fileRedirects.getOrDefault(relativePath, relativePath), stream.readAllBytes());
+                } catch (Throwable e) {
+                    Filament.LOGGER.error("Error reading nexo asset", e);
+                }
+            });
+        } catch (Throwable e) {
+            Filament.LOGGER.error("Error reading nexo pack assets", e);
+        }
+
+        byte[] atlas = generateAtlasJson(texturePaths);
+        filemap.put("assets/minecraft/atlases/blocks.json", atlas);
+        filemap.put("assets/minecraft/atlases/particle.json", atlas);
+
+        PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(resourcePackBuilder -> {
+            filemap.forEach(resourcePackBuilder::addData);
         });
     }
 
