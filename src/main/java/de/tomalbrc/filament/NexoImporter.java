@@ -124,6 +124,7 @@ public class NexoImporter {
                         }
                     }
 
+                    System.out.println("relativePath: " + relativePath);
                     filemap.put(fileRedirects.getOrDefault(relativePath, relativePath), stream.readAllBytes());
                 } catch (Throwable e) {
                     Filament.LOGGER.error("Error reading nexo asset", e);
@@ -136,6 +137,10 @@ public class NexoImporter {
         byte[] atlas = generateAtlasJson(texturePaths);
         filemap.put("assets/minecraft/atlases/blocks.json", atlas);
         filemap.put("assets/minecraft/atlases/particle.json", atlas);
+
+        for (Map.Entry<String, byte[]> stringEntry : filemap.entrySet()) {
+            System.out.println("final: " + stringEntry.getKey());
+        }
 
         PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(resourcePackBuilder -> {
             filemap.forEach(resourcePackBuilder::addData);
@@ -261,20 +266,25 @@ public class NexoImporter {
 
     private static void handleOraxenAttributes(List<?> attr, DataComponentMap.Builder builder) {
         var attrBuilder = ItemAttributeModifiers.builder();
-        for (Object o : attr) {
-            var amount = getValue("amount", o, Number.class);
-            var attribute = getValue("attribute", o, String.class);
-            var operation = getValue("operation", o, Integer.class);
-            var slot = EquipmentSlot.valueOf(getValue("slot", o, String.class));
+        try {
+            for (Object o : attr) {
+                var amount = getValue("amount", o, Number.class);
+                var attribute = getValue("attribute", o, String.class);
+                var operation = getValue("operation", o, Integer.class);
+                var slot = EquipmentSlot.valueOf(getValue("slot", o, String.class));
 
-            var str = attribute.toLowerCase().replace("_", ".").replace("generic.", "");
 
-            //? if >1.21.1 {
-            str = str.replace("generic.", "");
-            //?}
+                var str = attribute.toLowerCase().replace("_", ".");
 
-            var attrId = ResourceLocation.parse(str);
-            attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, attrId), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
+                //? if >1.21.1 {
+                str = str.replace("generic.", "");
+                //?}
+
+                var attrId = ResourceLocation.parse(str);
+                attrBuilder.add(RegUtil.get(BuiltInRegistries.ATTRIBUTE, attrId), new AttributeModifier(ResourceLocation.fromNamespaceAndPath("filament", "armor"), amount.doubleValue(), Arrays.stream(AttributeModifier.Operation.values()).filter(y -> y.id() == operation).findAny().orElseThrow()), EquipmentSlotGroup.bySlot(slot));
+            }
+        } catch (Exception e) {
+            Filament.LOGGER.error("Error reading attribute", e);
         }
         builder.set(DataComponents.ATTRIBUTE_MODIFIERS, attrBuilder.build());
     }
@@ -301,11 +311,7 @@ public class NexoImporter {
                         new PolymerBlockModel(ResourceLocation.parse(model), 0, 0, false, 0)
                 )))
                 .vanillaItem(vanillaItem)
-                //? if >1.21.1 {
                 .displayName(TextUtil.formatText(name))
-                //?} else {
-                /*.displayName(TextUtil.formatText(name))
-                 *///?}
                 .components(builder.build())
                 .blockModelType(BlockStateMappedProperty.of(BlockModelType.FULL_BLOCK))
                 .properties(props)

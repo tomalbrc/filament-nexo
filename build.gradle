@@ -4,6 +4,7 @@ plugins {
 }
 
 version = "${property("mod_version")}+${stonecutter.current.version}"
+var fabricVersion = "${property("mod_version")}"
 group = project.maven_group
 
 loom {
@@ -54,7 +55,7 @@ processResources {
     def minecraft = stonecutter.current.version
 
     filesMatching("fabric.mod.json") {
-        expand([minecraft: minecraft, version: version])
+        expand([minecraft: minecraft, version: fabricVersion])
     }
 }
 
