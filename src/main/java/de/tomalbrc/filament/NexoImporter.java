@@ -36,11 +36,15 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
+//? if >1.21.1 {
+import net.minecraft.world.item.equipment.Equippable;
+//?}
 import net.minecraft.world.level.material.PushReaction;
 import org.apache.commons.io.FilenameUtils;
 import org.jetbrains.annotations.Nullable;
@@ -54,7 +58,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class NexoImporter {
     public static void importAll() {
@@ -101,7 +108,8 @@ public class NexoImporter {
 
         Map<String, byte[]> filemap = new Object2ObjectOpenHashMap<>();
 
-        Set<ResourceLocation> texturePaths = new ObjectArraySet<>();
+        Map<String, Set<ResourceLocation>> texturePaths = new Object2ObjectOpenHashMap<>();
+        Map<String, Set<ResourceLocation>> orphans = new Object2ObjectOpenHashMap<>(); // namespace for textures that are directly in the textures/ folder... i hate this
         Path packPath = path.resolve("pack");
         try (var walk = Files.walk(packPath)) {
             walk.forEach(filepath -> {
@@ -116,15 +124,20 @@ public class NexoImporter {
                         relativePath = "assets/minecraft/" + relativePath;
                     }
 
+                    String ns = getNamespace(relativePath);
+
                     String dir = getTextureParent(relativePath);
                     if (dir != null && relativePath.endsWith(".png")) {
-                        String ns = getNamespace(relativePath);
                         if (ns != null) {
-                            texturePaths.add(ResourceLocation.fromNamespaceAndPath(ns, dir));
+                            if (dir.isBlank()) {
+                                var split = relativePath.split("/textures/");
+                                orphans.computeIfAbsent(ns, x -> new ObjectArraySet<>()).add(ResourceLocation.fromNamespaceAndPath(ns, split[split.length - 1].replace(".png", "")));
+                            } else {
+                                texturePaths.computeIfAbsent(ns, x -> new ObjectArraySet<>()).add(ResourceLocation.fromNamespaceAndPath(ns, dir));
+                            }
                         }
                     }
 
-                    System.out.println("relativePath: " + relativePath);
                     filemap.put(fileRedirects.getOrDefault(relativePath, relativePath), stream.readAllBytes());
                 } catch (Throwable e) {
                     Filament.LOGGER.error("Error reading nexo asset", e);
@@ -134,12 +147,10 @@ public class NexoImporter {
             Filament.LOGGER.error("Error reading nexo pack assets", e);
         }
 
-        byte[] atlas = generateAtlasJson(texturePaths);
-        filemap.put("assets/minecraft/atlases/blocks.json", atlas);
-        filemap.put("assets/minecraft/atlases/particle.json", atlas);
-
-        for (Map.Entry<String, byte[]> stringEntry : filemap.entrySet()) {
-            System.out.println("final: " + stringEntry.getKey());
+        var atlases = generateAtlasJson(texturePaths, orphans);
+        for (Map.Entry<String, byte[]> entry : atlases.entrySet()) {
+            filemap.put("assets/" + "minecraft" + "/atlases/blocks.json", entry.getValue());
+            filemap.put("assets/" + "minecraft" + "/atlases/particle.json", entry.getValue());
         }
 
         PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(resourcePackBuilder -> {
@@ -179,21 +190,38 @@ public class NexoImporter {
         return normalized.substring(assetsIndex + prefix.length(), texturesIndex);
     }
 
-    private static byte[] generateAtlasJson(Collection<ResourceLocation> sourceDirs) {
-        JsonObject root = new JsonObject();
-        JsonArray sources = new JsonArray();
+    private static Map<String, byte[]> generateAtlasJson(Map<String, Set<ResourceLocation>> sourceDirs, Map<String, Set<ResourceLocation>> orphans) {
+        Map<String, JsonArray> sourcesMap = new Object2ObjectOpenHashMap<>();
 
-        for (ResourceLocation dir : sourceDirs) {
-            JsonObject source = new JsonObject();
-            source.addProperty("type", "directory");
-            source.addProperty("prefix", dir.getPath() + "/");
-            source.addProperty("source", dir.getPath());
-            sources.add(source);
+        for (Map.Entry<String, Set<ResourceLocation>> entry : sourceDirs.entrySet()) {
+            for (ResourceLocation dir : entry.getValue()) {
+                JsonObject source = new JsonObject();
+                source.addProperty("type", "directory");
+                source.addProperty("prefix", dir.getPath() + "/");
+                source.addProperty("source", dir.getPath());
+                sourcesMap.computeIfAbsent(entry.getKey(), x -> new JsonArray()).add(source);
+            }
         }
-        root.add("sources", sources);
+        for (Map.Entry<String, Set<ResourceLocation>> entry : orphans.entrySet()) {
+            for (ResourceLocation orphan : entry.getValue()) {
+                JsonObject source = new JsonObject();
+                source.addProperty("type", "single");
+                source.addProperty("sprite", orphan.toString());
+                source.addProperty("resource", orphan.toString());
+                sourcesMap.computeIfAbsent(entry.getKey(), x -> new JsonArray()).add(source);
+            }
+        }
 
         Gson gson = new GsonBuilder().create();
-        return gson.toJson(root).getBytes(StandardCharsets.UTF_8);
+
+        Map<String, byte[]> res = new Object2ObjectOpenHashMap<>();
+        for (Map.Entry<String, JsonArray> entry : sourcesMap.entrySet()) {
+            JsonObject root = new JsonObject();
+            root.add("sources", entry.getValue());
+            res.put(entry.getKey(), gson.toJson(root).getBytes(StandardCharsets.UTF_8));
+        }
+
+        return res;
     }
 
     public static void importSingleFile(String baseName, InputStream inputStream, Map<String, String> fileRedirects) {
@@ -529,6 +557,7 @@ public class NexoImporter {
             }
         }
 
+        var mechanics = getMap("Mechanics", data);
         //? if <=1.21.1 {
         /*var customArmor = getMap("#CustomArmor", pack);
         if (customArmor != null) {
@@ -555,13 +584,30 @@ public class NexoImporter {
             behaviourConfigMap.put(Behaviours.ELYTRA, new Elytra.Config());
         }
 
-        var mechanics = getMap("Mechanics", data);
-        if (mechanics != null && mechanics.containsKey("cosmetic") && vanillaItem instanceof Equipable equipable) {
-            var conf = new Cosmetic.Config();
-            conf.slot = equipable.getEquipmentSlot();
-            behaviourConfigMap.put(Behaviours.COSMETIC, conf);
+        if (mechanics != null) {
+            if (mechanics.containsKey("cosmetic") && vanillaItem instanceof Equipable equipable) {
+                var conf = new Cosmetic.Config();
+                conf.slot = equipable.getEquipmentSlot();
+                behaviourConfigMap.put(Behaviours.COSMETIC, conf);
+            }
+
+            if (mechanics.containsKey("hat")) {
+                var conf = new Armor.Config();
+                conf.slot = EquipmentSlot.HEAD;
+                behaviourConfigMap.put(Behaviours.COSMETIC, conf);
+            }
         }
-        *///?}
+        *///?} else {
+        if (mechanics != null) {
+            if (mechanics.containsKey("cosmetic") && vanillaItem.components().has(DataComponents.EQUIPPABLE)) {
+                builder.set(DataComponents.EQUIPPABLE, vanillaItem.components().get(DataComponents.EQUIPPABLE));
+            }
+
+            if (mechanics.containsKey("hat")) {
+                builder.set(DataComponents.EQUIPPABLE, Equippable.builder(EquipmentSlot.HEAD).setSwappable(true).setDispensable(true).setAllowedEntities(EntityType.PLAYER, EntityType.ARMOR_STAND).build());
+            }
+        }
+        //?}
 
         if (vanillaItem instanceof ShovelItem) {
             behaviourConfigMap.put(Behaviours.SHOVEL, new Shovel.Config());
