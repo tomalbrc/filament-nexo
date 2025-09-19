@@ -237,7 +237,9 @@ public class NexoImporter {
         if (name == null)
             name = getValue("itemname", data, String.class); // fallback for older configs (nexo for <1.20.4)
 
-        var components = getValue("Components", data, String.class);
+        var components = getMap("Components", data);
+
+        var builder = DataComponentMap.builder();
         DataComponentMap xmap = null;
         if (components != null) {
             try {
@@ -248,10 +250,11 @@ public class NexoImporter {
             } catch (Exception e) {
                 Filament.LOGGER.error("Could not load components for nexo item {}", id, e);
             }
-        }
 
-        var builder = DataComponentMap.builder();
-        if (xmap != null) builder.addAll(xmap);
+            if (xmap != null) builder.addAll(xmap);
+
+            handleOraxenComponents(components, builder);
+        }
 
         if (name != null)
             builder.set(DataComponents.ITEM_NAME, TextUtil.formatText(name));
@@ -290,6 +293,21 @@ public class NexoImporter {
         } else {
             addItem(id, data, vanillaItem, name, builder, fileRedirects);
         }
+    }
+
+    private static void handleOraxenComponents(Map<String, Object> components, DataComponentMap.Builder builder) {
+        if (components.containsKey("durability")) {
+            builder.set(DataComponents.MAX_DAMAGE, getValue("value", getMap("durability", components), Integer.class));
+        }
+
+        //? if >1.21.1 {
+        if (components.containsKey("equippable")) {
+            var eq = getMap("equippable", components);
+            var slot = getValue("slot", eq, String.class);
+            var eqs = EquipmentSlot.valueOf(slot);
+            builder.set(DataComponents.EQUIPPABLE, Equippable.builder(eqs).setSwappable(true).setDispensable(true).setAllowedEntities(EntityType.PLAYER, EntityType.ARMOR_STAND).build());
+        }
+        //?}
     }
 
     private static void handleOraxenAttributes(List<?> attr, DataComponentMap.Builder builder) {
@@ -396,6 +414,19 @@ public class NexoImporter {
                     getValue("wall", placing, Boolean.class) == Boolean.TRUE,
                     getValue("floor", placing, Boolean.class) == Boolean.TRUE,
                     getValue("roof", placing, Boolean.class) == Boolean.TRUE);
+
+
+            //? if >1.21.1 {
+            if (props.placement.wall() && !behaviourConfigMap.has(Behaviours.ROTATING)) {
+                var conf = new Rotating.Config();
+                conf.smooth = false;
+                behaviourConfigMap.put(Behaviours.ROTATING, conf);
+            }
+            //?} else {
+            /*if (props.placement.wall()) {
+                props.rotate |= true;
+            }
+            *///?}
         }
 
         var waterloggable = getValue("waterloggable", furniture, Boolean.class) == Boolean.TRUE;
@@ -594,17 +625,19 @@ public class NexoImporter {
             if (mechanics.containsKey("hat")) {
                 var conf = new Armor.Config();
                 conf.slot = EquipmentSlot.HEAD;
-                behaviourConfigMap.put(Behaviours.COSMETIC, conf);
+                behaviourConfigMap.put(Behaviours.ARMOR, conf);
             }
         }
         *///?} else {
         if (mechanics != null) {
-            if (mechanics.containsKey("cosmetic") && vanillaItem.components().has(DataComponents.EQUIPPABLE)) {
+            if (mechanics.containsKey("cosmetic")) {
                 builder.set(DataComponents.EQUIPPABLE, vanillaItem.components().get(DataComponents.EQUIPPABLE));
+                vanillaItem = Items.PAPER;
             }
 
             if (mechanics.containsKey("hat")) {
                 builder.set(DataComponents.EQUIPPABLE, Equippable.builder(EquipmentSlot.HEAD).setSwappable(true).setDispensable(true).setAllowedEntities(EntityType.PLAYER, EntityType.ARMOR_STAND).build());
+                vanillaItem = Items.PAPER;
             }
         }
         //?}
