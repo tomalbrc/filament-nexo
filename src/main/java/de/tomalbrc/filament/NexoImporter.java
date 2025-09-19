@@ -632,12 +632,10 @@ public class NexoImporter {
         if (mechanics != null) {
             if (mechanics.containsKey("cosmetic")) {
                 builder.set(DataComponents.EQUIPPABLE, vanillaItem.components().get(DataComponents.EQUIPPABLE));
-                vanillaItem = Items.PAPER;
             }
 
             if (mechanics.containsKey("hat")) {
                 builder.set(DataComponents.EQUIPPABLE, Equippable.builder(EquipmentSlot.HEAD).setSwappable(true).setDispensable(true).setAllowedEntities(EntityType.PLAYER, EntityType.ARMOR_STAND).build());
-                vanillaItem = Items.PAPER;
             }
         }
         //?}
